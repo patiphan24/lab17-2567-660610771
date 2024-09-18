@@ -1,12 +1,12 @@
-import { 
-  zEnrollmentGetParam, 
-  zEnrollmentPostBody, 
-  zEnrollmentDeleteBody 
+import {
+  zEnrollmentGetParam,
+  zEnrollmentPostBody,
+  zEnrollmentDeleteBody
 } from "@lib/schema";
 import { DB, Student } from "@lib/DB";
 import { NextRequest, NextResponse } from "next/server";
 
-export const GET = async (request:NextRequest) => {
+export const GET = async (request: NextRequest) => {
   const studentId = request.nextUrl.searchParams.get("studentId");
   const courseNo = request.nextUrl.searchParams.get("courseNo");
 
@@ -28,13 +28,15 @@ export const GET = async (request:NextRequest) => {
   //check if user provide one of 'studentId' or 'courseNo'
   //User must not provide both values, and must not provide nothing
 
-  // return NextResponse.json(
-  //   {
-  //     ok: false,
-  //     message: "Please provide either studentId or courseNo and not both!",
-  //   },
-  //   { status: 400 }
-  // );
+  if (studentId && courseNo || !studentId && !courseNo) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Please provide either studentId or courseNo and not both!",
+      },
+      { status: 400 }
+    );
+  }
 
   //get all courses enrolled by a student
   if (studentId) {
@@ -60,10 +62,19 @@ export const GET = async (request:NextRequest) => {
     const studentIdList = [];
     for (const enroll of DB.enrollments) {
       //your code here
+      if (enroll.courseNo === courseNo) {
+        studentIdList.push(enroll.studentId);
+      }
     }
 
-    const students:Student[] = [];
+    const students: Student[] = [];
     //your code here
+    for (const studentId of studentIdList) {
+      const student = DB.students.find((x) => x.studentId === studentId);
+      if (student) {
+        students.push(student);
+      }
+    }
 
     return NextResponse.json({
       ok: true,
@@ -72,7 +83,7 @@ export const GET = async (request:NextRequest) => {
   }
 };
 
-export const POST = async (request:NextRequest) => {
+export const POST = async (request: NextRequest) => {
   const body = await request.json();
   const parseResult = zEnrollmentPostBody.safeParse(body);
   if (parseResult.success === false) {
@@ -123,7 +134,7 @@ export const POST = async (request:NextRequest) => {
   });
 };
 
-export const DELETE = async (request:NextRequest) => {
+export const DELETE = async (request: NextRequest) => {
   const body = await request.json();
 
   //validate body request with zod schema
@@ -141,16 +152,20 @@ export const DELETE = async (request:NextRequest) => {
   const { studentId, courseNo } = body;
 
   //check if studentId and courseNo exist on enrollment
+  const check = DB.enrollments.find((x) => x.studentId === studentId && x.courseNo === courseNo);
 
-  // return NextResponse.json(
-  //   {
-  //     ok: false,
-  //     message: "Enrollment does not exist",
-  //   },
-  //   { status: 404 }
-  // );
+  if (!check) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Enrollment does not exist",
+      },
+      { status: 404 }
+    );
+  }
 
   //perform deletion by using splice or array filter
+  DB.enrollments.splice(DB.enrollments.indexOf(check), 1);
 
   //if code reach here it means deletion is complete
   return NextResponse.json({
@@ -158,4 +173,3 @@ export const DELETE = async (request:NextRequest) => {
     message: "Enrollment has been deleted",
   });
 };
-
